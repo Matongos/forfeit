@@ -13,11 +13,15 @@ Check in on time, every time, and you withdraw it all back. Miss one window and
 the contract hands your stake to your friend — no support line, no refunds, no
 way out. Only a smart contract can make a commitment you literally cannot cancel.
 
+## Live app
+
+**https://forfeit-two.vercel.app** (MetaMask on Monad testnet)
+
 ## Contract
 
 `HabitStake.sol` on **Monad testnet** (chain 10143):
 
-**Address:** `TBD_CONTRACT_ADDRESS` — [view on explorer](https://testnet.monadexplorer.com/address/TBD_CONTRACT_ADDRESS)
+**Address:** `0xaf4099cf3b4f47d3a7385b071f0e74a7681b7757` — [view on explorer](https://testnet.monadexplorer.com/address/0xaf4099cf3b4f47d3a7385b071f0e74a7681b7757)
 
 - `create(beneficiary, window, minGap, required, refereeMode, habit)` — lock a stake (payable)
 - `checkIn(id)` — log a check-in; must be after `minGap`, before `window` expires
@@ -38,7 +42,3 @@ npm run deploy     # compile + deploy contract (needs .wallet.json with a funded
 ## Demo video
 
 `TBD_VIDEO_LINK`
-
-## Live app
-
-`TBD_APP_URL`
