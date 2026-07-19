@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { formatEther, parseEther } from 'viem';
+import { formatEther, isAddress, parseEther } from 'viem';
 import {
   ABI, CHAIN, CONTRACT, EXPLORER, publicClient, readCommitment, nextId,
   short, walletClient, type Commitment,
@@ -115,7 +115,7 @@ export default function App() {
         </div>
       )}
 
-      {account && !c && <CreateForm onCreate={(args, value) => send('create', args, value)} busy={busy} />}
+      {account && !c && <CreateForm account={account} onCreate={(args, value) => send('create', args, value)} busy={busy} />}
 
       {account && c && id !== null && (
         <SlipCard
@@ -140,8 +140,10 @@ export default function App() {
   );
 }
 
-function CreateForm({ onCreate, busy }: {
-  onCreate: (args: any[], value: bigint) => void; busy: boolean;
+const GAS_RESERVE = parseEther('0.1'); // keep enough MON aside to pay for all the txs
+
+function CreateForm({ account, onCreate, busy }: {
+  account: `0x${string}`; onCreate: (args: any[], value: bigint) => void; busy: boolean;
 }) {
   const [habit, setHabit] = useState('');
   const [stake, setStake] = useState('1');
@@ -150,6 +152,18 @@ function CreateForm({ onCreate, busy }: {
   const [minGapH, setMinGapH] = useState('16');
   const [required, setRequired] = useState('7');
   const [demo, setDemo] = useState(false);
+  const [balance, setBalance] = useState<bigint | null>(null);
+
+  useEffect(() => {
+    publicClient.getBalance({ address: account }).then(setBalance).catch(() => {});
+  }, [account]);
+
+  let stakeWei = 0n;
+  try { stakeWei = parseEther(stake || '0'); } catch { /* invalid number */ }
+  const badAddress = beneficiary !== '' && !isAddress(beneficiary);
+  const selfAddress = beneficiary.toLowerCase() === account.toLowerCase();
+  const tooMuch = balance !== null && stakeWei + GAS_RESERVE > balance;
+  const invalid = !beneficiary || badAddress || selfAddress || stakeWei <= 0n || tooMuch;
 
   const submit = () => {
     const w = demo ? 90 : Math.round(Number(windowH) * 3600);
@@ -162,9 +176,13 @@ function CreateForm({ onCreate, busy }: {
     <div className="slip">
       <div className="slip-head">NEW WAGER SLIP</div>
       <label>HABIT<input value={habit} onChange={(e) => setHabit(e.target.value)} placeholder="gym every day" /></label>
-      <label>STAKE (MON)<input value={stake} onChange={(e) => setStake(e.target.value)} /></label>
-      <label>PAYS ON FAILURE (friend's address)
-        <input value={beneficiary} onChange={(e) => setBeneficiary(e.target.value)} placeholder="0x…" /></label>
+      <label>STAKE (MON){balance !== null && <span className="hint"> · you have {Number(formatEther(balance)).toFixed(2)}</span>}
+        <input value={stake} onChange={(e) => setStake(e.target.value)} /></label>
+      {tooMuch && <p className="field-error">Stake less — leave at least 0.1 MON for gas.</p>}
+      <label>PAYS ON FAILURE (friend's wallet address)
+        <input value={beneficiary} onChange={(e) => setBeneficiary(e.target.value)} placeholder="0x… (42 characters, from their MetaMask)" /></label>
+      {badAddress && <p className="field-error">Not a wallet address — copy the 0x… address from your friend's MetaMask.</p>}
+      {selfAddress && <p className="field-error">Beneficiary can't be your own address — pick a friend.</p>}
       {!demo && (
         <div className="row">
           <label>WINDOW (h)<input value={windowH} onChange={(e) => setWindowH(e.target.value)} /></label>
@@ -176,7 +194,7 @@ function CreateForm({ onCreate, busy }: {
         <input type="checkbox" checked={demo} onChange={(e) => setDemo(e.target.checked)} />
         Demo preset (90s window · 20s gap · 2 check-ins)
       </label>
-      <button className="btn primary" disabled={busy || !beneficiary} onClick={submit}>
+      <button className="btn primary" disabled={busy || invalid} onClick={submit}>
         {busy ? 'Confirm in wallet…' : `Lock ${stake} MON`}
       </button>
     </div>
